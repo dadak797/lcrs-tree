@@ -2,13 +2,13 @@
 
 // Standard library
 #include <cassert>
-
-// Test
 #include <iostream>
 
-TreeNode::TreeNode(const char* text)
-    : m_Text(text)
-    , m_UserData(nullptr)
+
+TreeNode::TreeNode(int32_t id, const char* text)
+    : m_Id(id)
+    , m_Text(text)
+    // , m_UserData(nullptr)
     , m_Parent(nullptr)
     , m_LeftChild(nullptr)
     , m_RightSibling(nullptr)
@@ -53,6 +53,8 @@ int32_t TreeNode::GetDepth() const {
 }
 
 
+int32_t LcrsTree::s_NextId = 0;
+
 LcrsTreeUPtr LcrsTree::New(const char* text) {
     if (text == nullptr) {
         return nullptr;
@@ -83,7 +85,7 @@ LcrsTree::~LcrsTree() {
 bool LcrsTree::createRoot(const char* text) {
     assert(m_Root == nullptr && "Root already exists.");
 
-    m_Root = new TreeNode(text);
+    m_Root = new TreeNode(s_NextId++, text);
     return true;
 }
 
@@ -93,7 +95,7 @@ TreeNode* LcrsTree::InsertItem(const char* text, TreeNode* parent) {
         parent = m_Root;
     }
 
-    TreeNode* newNode = new TreeNode(text);
+    TreeNode* newNode = new TreeNode(s_NextId++, text);
 
     if (parent->m_LeftChild == nullptr) {
         // If the parent has no children, set the new node as the left child
@@ -145,11 +147,11 @@ bool LcrsTree::DeleteItem(TreeNode* node) {
     }
 
     deleteItemRecursive(node);
+    setNextId();  // Update the next id after deletion
 
     return true;
 }
 
-// void LcrsTree::TraverseTree(void (*callback)(TreeNode*, void*), TreeNode* startNode, void* userData) {
 void LcrsTree::TraverseTree(std::function<void(TreeNode*, void*)> callback, TreeNode* startNode, void* userData) {
     if (callback == nullptr) {
         return;
@@ -164,7 +166,6 @@ void LcrsTree::TraverseTree(std::function<void(TreeNode*, void*)> callback, Tree
     traverseTreeRecursive(callback, startNode, userData);
 }
 
-// void LcrsTree::traverseTreeRecursive(void (*callback)(TreeNode*, void*), TreeNode* node, void* userData) {
 void LcrsTree::traverseTreeRecursive(std::function<void(TreeNode*, void*)> callback, TreeNode* node, void* userData) {
     if (!node || !callback) {
         return;
@@ -196,4 +197,35 @@ void LcrsTree::deleteItemRecursive(TreeNode* node) {
 
     // Delete the current node
     delete node;
+}
+
+void LcrsTree::setNextId() {
+    int32_t maxId = 0;
+
+    TreeNode* startNode = m_Root;
+    traverseTreeRecursive([&maxId](TreeNode* node, void*) {
+        if (node->m_Id > maxId) {
+            maxId = node->m_Id;
+        }
+    }, startNode, nullptr);
+
+    s_NextId = maxId + 1;
+}
+
+const TreeNode* LcrsTree::GetNodeById(int32_t id) {
+    if (m_Root == nullptr) {
+        return nullptr;
+    }
+
+    TreeNode* foundNode = nullptr;
+
+    // Traverse the tree to find the node with the specified id
+    traverseTreeRecursive([&foundNode, id](TreeNode* node, void*) {
+        if (node->m_Id == id) {
+            foundNode = node;
+            return;  // Stop traversing once the node is found
+        }
+    }, m_Root, nullptr);
+
+    return foundNode;
 }

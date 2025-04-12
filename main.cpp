@@ -26,11 +26,11 @@ int main() {
     TreeNode* node112 = geomTree->InsertItem("1-1-2", node11);
 
     geomTree->TraverseTree([](TreeNode* node, void* userData) {
-        for (int i = 0; i < node->GetDepth(); ++i) {
+        for (int i = 0; i < node->GetDepth(); i++) {
             std::cout << "--";
         }
 
-        std::cout << "[Node]: " << node->GetText();
+        std::cout << "[Node]: " << node->GetText() << ", [ID]: " << node->GetId();
         std::cout << ", [Parent]: " << (node->GetParent() ? node->GetParent()->GetText() : "NULL");
         std::cout << ", [Left Child]: " << (node->GetLeftChild() ? node->GetLeftChild()->GetText(): "NULL");
         std::cout << ", [Right Sibling]: " << (node->GetRightSibling() ? node->GetRightSibling()->GetText() : "NULL");
@@ -38,15 +38,38 @@ int main() {
         std::cout << std::endl;
     });
 
+    const TreeNode* node = geomTree->GetNodeById(11);
+    if (node) {
+        std::cout << "Found node with Id 11: " << node->GetText() << std::endl;
+    } else {
+        std::cout << "Node with Id 11 not found." << std::endl;
+    }
+
     geomTree->DeleteItem(node11);
     std::cout << "--- After deleting node11 ---" << std::endl;
 
     geomTree->TraverseTree([](TreeNode* node, void* userData) {
-        for (int i = 0; i < node->GetDepth(); ++i) {
+        for (int i = 0; i < node->GetDepth(); i++) {
             std::cout << "--";
         }
 
-        std::cout << "[Node]: " << node->GetText();
+        std::cout << "[Node]: " << node->GetText() << ", [ID]: " << node->GetId();
+        std::cout << ", [Parent]: " << (node->GetParent() ? node->GetParent()->GetText() : "NULL");
+        std::cout << ", [Left Child]: " << (node->GetLeftChild() ? node->GetLeftChild()->GetText(): "NULL");
+        std::cout << ", [Right Sibling]: " << (node->GetRightSibling() ? node->GetRightSibling()->GetText() : "NULL");
+        std::cout << ", [Left Sibling]: " << (node->GetLeftSibling() ? node->GetLeftSibling()->GetText() : "NULL");
+        std::cout << std::endl;
+    });
+
+    geomTree->DeleteItem(node33);
+    std::cout << "--- After deleting node33 ---" << std::endl;
+
+    geomTree->TraverseTree([](TreeNode* node, void* userData) {
+        for (int i = 0; i < node->GetDepth(); i++) {
+            std::cout << "--";
+        }
+
+        std::cout << "[Node]: " << node->GetText() << ", [ID]: " << node->GetId();
         std::cout << ", [Parent]: " << (node->GetParent() ? node->GetParent()->GetText() : "NULL");
         std::cout << ", [Left Child]: " << (node->GetLeftChild() ? node->GetLeftChild()->GetText(): "NULL");
         std::cout << ", [Right Sibling]: " << (node->GetRightSibling() ? node->GetRightSibling()->GetText() : "NULL");
