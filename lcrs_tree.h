@@ -4,16 +4,14 @@
 
 // Standard library
 #include <string>
-#include <memory>
 #include <functional>
-#include <unordered_map>
 #include <cassert>
+#include <memory>
 
-// Test
+// FOR DEBUGGING
 #include <iostream>
 
 
-template <typename T>
 class TreeNode {
 public:
     TreeNode(int32_t id, const char* label);
@@ -33,61 +31,59 @@ public:
 private:
     int32_t m_Id;
     std::string m_Label;
-    std::unique_ptr<T> m_Data;
     TreeNode* m_Parent;
     TreeNode* m_LeftChild;
     TreeNode* m_RightSibling;
     TreeNode* m_LeftSibling;
 
     // All template instances of LcrsTree will be friends with this class.
-    template <typename U>
     friend class LcrsTree;
 };
 
 
-DECLARE_TEMPLATE_PTR(LcrsTree)
-template <typename T>
+DECLARE_PTR(LcrsTree)
 class LcrsTree {
 public:
-    static LcrsTreeUPtr<T> New(int32_t id, const char* label, std::unique_ptr<T> data = nullptr);
+    // Factory method to create a new LcrsTree instance
+    // The new Id should be assigned by the caller.
+    static LcrsTreeUPtr New(int32_t id, const char* label);
     ~LcrsTree();
 
     // Getters
-    const TreeNode<T>* GetRoot() const { return m_Root; }
-    const TreeNode<T>* GetTreeNodeById(int32_t id) const;
-    const T* GetDataById(int32_t id) const;
+    const TreeNode* GetRoot() const { return m_Root; }
+    const TreeNode* GetTreeNodeById(int32_t id) const;
     
     // If the parent is nullptr, the root will be used.
-    TreeNode<T>* InsertItem(int32_t id, const char* label, std::unique_ptr<T> data = nullptr, 
-        TreeNode<T>* parent = nullptr);
-    bool DeleteItem(TreeNode<T>* node);
+    // If the id already exists or the label is empty, the item will not be inserted and return nullptr.
+    TreeNode* InsertItem(int32_t id, const char* label, TreeNode* parent = nullptr);
+    bool DeleteItem(TreeNode* node);
 
     // Traverse all tree nodes
     // The callback function will be called for each node.
-    void TraverseTree(std::function<void(TreeNode<T>*, void*)> callback, 
-        TreeNode<T>* startNode = nullptr, void* userData = nullptr);
-    void TraverseTree(std::function<void(const TreeNode<T>*, void*)> callback, 
-        const TreeNode<T>* startNode = nullptr, void* userData = nullptr) const;
+    // The userData parameter can be used to pass additional data to the callback function.
+    void TraverseTree(std::function<void(const TreeNode*, void*)> callback, 
+        const TreeNode* startNode = nullptr, void* userData = nullptr) const;
+    void TraverseTreeMutable(std::function<void(TreeNode*, void*)> callback, 
+        TreeNode* startNode = nullptr, void* userData = nullptr);
 
 private:
     LcrsTree();
 
-    TreeNode<T>* m_Root;
+    TreeNode* m_Root;
 
-    bool createRoot(int32_t id, const char* label, std::unique_ptr<T> data = nullptr);
-    void traverseTreeRecursive(std::function<void(TreeNode<T>*, void*)> callback, 
-        TreeNode<T>* node, void* userData);
-    void traverseTreeRecursive(std::function<void(const TreeNode<T>*, void*)> callback, 
-        const TreeNode<T>* node, void* userData) const;
-    void deleteItemRecursive(TreeNode<T>* node);
+    bool createRoot(int32_t id, const char* label);
+    void traverseTreeRecursive(std::function<void(const TreeNode*, void*)> callback, 
+        const TreeNode* node, void* userData) const;
+    void traverseTreeRecursiveMutable(std::function<void(TreeNode*, void*)> callback, 
+        TreeNode* node, void* userData);
+    void deleteItemRecursive(TreeNode* node);
     bool isExistingId(int32_t id) const;
 };
 
 
 // Implementation of TreeNode
 
-template <typename T>
-TreeNode<T>::TreeNode(int32_t id, const char* label)
+TreeNode::TreeNode(int32_t id, const char* label)
     : m_Id(id)
     , m_Label(label)
     , m_Parent(nullptr)
@@ -95,20 +91,27 @@ TreeNode<T>::TreeNode(int32_t id, const char* label)
     , m_RightSibling(nullptr)
     , m_LeftSibling(nullptr)
 {
+    assert(id >= 0 && "Id cannot be negative.");
     assert(label && "Label cannot be empty.");
+
+    // FOR DEBUGGING
+    std::cout << "Creating TreeNode - [Id]: " << m_Id << ", [Label]: " << m_Label << std::endl;
 }
 
-template <typename T>
-TreeNode<T>::~TreeNode() {
+TreeNode::~TreeNode() {
     // NOTE:
     // The node links are managed by the LcrsTree class,
     // so it is not need to rearrange the links here.
-    // The user data is managed by the user,
-    // so it is not need to delete the user data here.
+    m_Parent = nullptr;
+    m_LeftChild = nullptr;
+    m_RightSibling = nullptr;
+    m_LeftSibling = nullptr;
+
+    // FOR DEBUGGING
+    std::cout << "Destroying TreeNode - [Id]: " << m_Id << ", [Label]: " << m_Label << std::endl;
 }
 
-template <typename T>
-int32_t TreeNode<T>::GetChildCount() const {
+int32_t TreeNode::GetChildCount() const {
     int32_t count = 0;
     TreeNode* child = m_LeftChild;
 
@@ -121,8 +124,7 @@ int32_t TreeNode<T>::GetChildCount() const {
     return count;
 }
 
-template <typename T>
-int32_t TreeNode<T>::GetDepth() const {
+int32_t TreeNode::GetDepth() const {
     int32_t depth = 0;
     TreeNode* parent = m_Parent;
 
@@ -138,29 +140,26 @@ int32_t TreeNode<T>::GetDepth() const {
 
 // Implementation of LcrsTree
 
-template <typename T>
-LcrsTreeUPtr<T> LcrsTree<T>::New(int32_t id, const char* label, std::unique_ptr<T> data) {
+LcrsTreeUPtr LcrsTree::New(int32_t id, const char* label) {
     if (label == nullptr) {
         return nullptr;
     }
 
     // Create a new LcrsTree instance
-    LcrsTreeUPtr<T> tree = LcrsTreeUPtr<T>(new LcrsTree<T>());
-    if (!tree->createRoot(id, label, std::move(data))) {
+    LcrsTreeUPtr tree = LcrsTreeUPtr(new LcrsTree());
+    if (!tree->createRoot(id, label)) {
         return nullptr;
     }
     
     return std::move(tree);
 }
 
-template <typename T>
-LcrsTree<T>::LcrsTree()
+LcrsTree::LcrsTree()
     : m_Root(nullptr)
 {
 }
 
-template <typename T>
-LcrsTree<T>::~LcrsTree() {
+LcrsTree::~LcrsTree() {
     if (m_Root) {
         // Delete all nodes starting from the root
         deleteItemRecursive(m_Root);
@@ -168,27 +167,21 @@ LcrsTree<T>::~LcrsTree() {
     }
 }
 
-template <typename T>
-bool LcrsTree<T>::createRoot(int32_t id, const char* label, std::unique_ptr<T> data) {
+bool LcrsTree::createRoot(int32_t id, const char* label) {
     assert(m_Root == nullptr && "Root already exists.");
 
     if (isExistingId(id)) {
         return false;
     }
 
-    m_Root = new TreeNode<T>(id, label);
-    if (data) {
-        m_Root->m_Data = std::move(data);
-    }
+    m_Root = new TreeNode(id, label);
 
     return true;
 }
 
-template <typename T>
-TreeNode<T>* LcrsTree<T>::InsertItem(int32_t id, const char* label, 
-    std::unique_ptr<T> data, TreeNode<T>* parent)
-{
-    if (isExistingId(id)) {
+TreeNode* LcrsTree::InsertItem(int32_t id, const char* label, 
+    TreeNode* parent) {
+    if (isExistingId(id) || label == nullptr) {
         return nullptr;
     }
 
@@ -197,10 +190,7 @@ TreeNode<T>* LcrsTree<T>::InsertItem(int32_t id, const char* label,
         parent = m_Root;
     }
 
-    TreeNode<T>* newNode = new TreeNode<T>(id, label);
-    if (data) {
-        newNode->m_Data = std::move(data);
-    }
+    TreeNode* newNode = new TreeNode(id, label);
 
     if (parent->m_LeftChild == nullptr) {
         // If the parent has no children, set the new node as the left child
@@ -209,7 +199,7 @@ TreeNode<T>* LcrsTree<T>::InsertItem(int32_t id, const char* label,
     }
     else {
         // Otherwise, find the rightmost sibling and set the new node as the right sibling
-        TreeNode<T>* sibling = parent->m_LeftChild;
+        TreeNode* sibling = parent->m_LeftChild;
         while (sibling->m_RightSibling != nullptr) {
             sibling = sibling->m_RightSibling;
         }
@@ -221,8 +211,7 @@ TreeNode<T>* LcrsTree<T>::InsertItem(int32_t id, const char* label,
     return newNode;
 }
 
-template <typename T>
-bool LcrsTree<T>::DeleteItem(TreeNode<T>* node) {
+bool LcrsTree::DeleteItem(TreeNode* node) {
     if (node == nullptr) {
         return false;
     }
@@ -233,9 +222,9 @@ bool LcrsTree<T>::DeleteItem(TreeNode<T>* node) {
     }
 
     // Update links
-    TreeNode<T>* parent = node->m_Parent;
-    TreeNode<T>* rightSibling = node->m_RightSibling;
-    TreeNode<T>* leftSibling = node->m_LeftSibling;
+    TreeNode* parent = node->m_Parent;
+    TreeNode* rightSibling = node->m_RightSibling;
+    TreeNode* leftSibling = node->m_LeftSibling;
 
     if (parent->m_LeftChild == node) {
         // If the node is the left child of its parent
@@ -257,10 +246,8 @@ bool LcrsTree<T>::DeleteItem(TreeNode<T>* node) {
     return true;
 }
 
-template <typename T>
-void LcrsTree<T>::TraverseTree(std::function<void(TreeNode<T>*, void*)> callback, 
-    TreeNode<T>* startNode, void* userData)
-{
+void LcrsTree::TraverseTree(std::function<void(const TreeNode*, void*)> callback, 
+    const TreeNode* startNode, void* userData) const {
     if (callback == nullptr) {
         return;
     }
@@ -274,10 +261,8 @@ void LcrsTree<T>::TraverseTree(std::function<void(TreeNode<T>*, void*)> callback
     traverseTreeRecursive(callback, startNode, userData);
 }
 
-template <typename T>
-void LcrsTree<T>::TraverseTree(std::function<void(const TreeNode<T>*, void*)> callback, 
-    const TreeNode<T>* startNode, void* userData) const
-{
+void LcrsTree::TraverseTreeMutable(std::function<void(TreeNode*, void*)> callback, 
+    TreeNode* startNode, void* userData) {
     if (callback == nullptr) {
         return;
     }
@@ -288,13 +273,12 @@ void LcrsTree<T>::TraverseTree(std::function<void(const TreeNode<T>*, void*)> ca
     }
 
     // Traverse the tree recursively
-    traverseTreeRecursive(callback, startNode, userData);
+    traverseTreeRecursiveMutable(callback, startNode, userData);
 }
 
-template <typename T>
-void LcrsTree<T>::traverseTreeRecursive(std::function<void(TreeNode<T>*, void*)> callback,
-    TreeNode<T>* node, void* userData)
-{
+void LcrsTree::traverseTreeRecursive(
+    std::function<void(const TreeNode*, void*)> callback,
+    const TreeNode* node, void* userData) const {
     if (!node || !callback) {
         return;
     }
@@ -303,17 +287,16 @@ void LcrsTree<T>::traverseTreeRecursive(std::function<void(TreeNode<T>*, void*)>
     callback(node, userData);
 
     // Traverse all children
-    TreeNode<T>* child = node->m_LeftChild;
+    const TreeNode* child = node->m_LeftChild;
     while (child != nullptr) {
         traverseTreeRecursive(callback, child, userData);
         child = child->m_RightSibling;
     }
 }
 
-template <typename T>
-void LcrsTree<T>::traverseTreeRecursive(std::function<void(const TreeNode<T>*, void*)> callback,
-    const TreeNode<T>* node, void* userData) const
-{
+void LcrsTree::traverseTreeRecursiveMutable(
+    std::function<void(TreeNode*, void*)> callback,
+    TreeNode* node, void* userData) {
     if (!node || !callback) {
         return;
     }
@@ -322,23 +305,22 @@ void LcrsTree<T>::traverseTreeRecursive(std::function<void(const TreeNode<T>*, v
     callback(node, userData);
 
     // Traverse all children
-    const TreeNode<T>* child = node->m_LeftChild;
+    TreeNode* child = node->m_LeftChild;
     while (child != nullptr) {
-        traverseTreeRecursive(callback, child, userData);
+        traverseTreeRecursiveMutable(callback, child, userData);
         child = child->m_RightSibling;
     }
 }
 
-template <typename T>
-void LcrsTree<T>::deleteItemRecursive(TreeNode<T>* node) {
+void LcrsTree::deleteItemRecursive(TreeNode* node) {
     if (node == nullptr) {
         return;
     }
 
     // Recursively delete all children
-    TreeNode<T>* child = node->m_LeftChild;
+    TreeNode* child = node->m_LeftChild;
     while (child != nullptr) {
-        TreeNode<T>* nextChild = child->m_RightSibling;
+        TreeNode* nextChild = child->m_RightSibling;
         deleteItemRecursive(child);
         child = nextChild;
     }
@@ -347,16 +329,15 @@ void LcrsTree<T>::deleteItemRecursive(TreeNode<T>* node) {
     delete node;
 }
 
-template <typename T>
-const TreeNode<T>* LcrsTree<T>::GetTreeNodeById(int32_t id) const {
+const TreeNode* LcrsTree::GetTreeNodeById(int32_t id) const {
     if (m_Root == nullptr) {
         return nullptr;
     }
 
-    const TreeNode<T>* foundNode = nullptr;
+    const TreeNode* foundNode = nullptr;
 
     // Traverse the tree to find the node with the specified id
-    traverseTreeRecursive([&foundNode, id](const TreeNode<T>* node, void*) {
+    traverseTreeRecursive([&foundNode, id](const TreeNode* node, void*) {
         if (node->GetId() == id) {
             foundNode = node;
             return;
@@ -366,20 +347,10 @@ const TreeNode<T>* LcrsTree<T>::GetTreeNodeById(int32_t id) const {
     return foundNode;
 }
 
-template <typename T>
-bool LcrsTree<T>::isExistingId(int32_t id) const {
+bool LcrsTree::isExistingId(int32_t id) const {
     if (GetTreeNodeById(id) != nullptr) {
         assert(false && "Id already exists.");
         return true;
     }
     return false;
-}
-
-template <typename T>
-const T* LcrsTree<T>::GetDataById(int32_t id) const {
-    const TreeNode<T>* node = GetTreeNodeById(id);
-    if (node) {
-        return node->m_Data.get();
-    }
-    return nullptr;
 }

@@ -32,7 +32,7 @@ private:
 
 int main() {
     std::unique_ptr<Mesh> pMesh0 = std::make_unique<Mesh>(0, "Mesh0", 100, 200);
-    LcrsTreeUPtr<Mesh> geomTree = LcrsTree<Mesh>::New(pMesh0->GetId(), pMesh0->GetName(), std::move(pMesh0));
+    LcrsTreeUPtr meshTree = LcrsTree::New(pMesh0->GetId(), pMesh0->GetName());
 
     std::unique_ptr<Mesh> pMesh1 = std::make_unique<Mesh>(1, "Mesh1", 150, 250);
     std::unique_ptr<Mesh> pMesh11 = std::make_unique<Mesh>(2, "Mesh11", 200, 300);
@@ -40,13 +40,13 @@ int main() {
     std::unique_ptr<Mesh> pMesh2 = std::make_unique<Mesh>(4, "Mesh2", 300, 400);
     std::unique_ptr<Mesh> pMesh3 = std::make_unique<Mesh>(5, "Mesh3", 350, 450);
 
-    TreeNode<Mesh>* node1 = geomTree->InsertItem(pMesh1->GetId(), pMesh1->GetName(), std::move(pMesh1));
-    geomTree->InsertItem(pMesh11->GetId(), pMesh11->GetName(), std::move(pMesh11), node1);
-    geomTree->InsertItem(pMesh12->GetId(), pMesh12->GetName(), std::move(pMesh12), node1);
-    TreeNode<Mesh>* node2 = geomTree->InsertItem(pMesh2->GetId(), pMesh2->GetName(), std::move(pMesh2));
-    TreeNode<Mesh>* node3 = geomTree->InsertItem(pMesh3->GetId(), pMesh3->GetName(), std::move(pMesh3));
+    TreeNode* node1 = meshTree->InsertItem(pMesh1->GetId(), pMesh1->GetName());
+    meshTree->InsertItem(pMesh11->GetId(), pMesh11->GetName(), node1);
+    meshTree->InsertItem(pMesh12->GetId(), pMesh12->GetName(), node1);
+    TreeNode* node2 = meshTree->InsertItem(pMesh2->GetId(), pMesh2->GetName());
+    TreeNode* node3 = meshTree->InsertItem(pMesh3->GetId(), pMesh3->GetName());
 
-    geomTree->TraverseTree([](TreeNode<Mesh>* node, void* userData) {
+    meshTree->TraverseTree([](const TreeNode* node, void* userData) {
         for (int i = 0; i < node->GetDepth(); ++i) {
             std::cout << "--";
         }
@@ -59,10 +59,10 @@ int main() {
         std::cout << std::endl;
     });
 
-    geomTree->DeleteItem(node1);
+    meshTree->DeleteItem(node1);
 
     std::cout << "After deleting node1:" << std::endl;
-    geomTree->TraverseTree([](TreeNode<Mesh>* node, void* userData) {
+    meshTree->TraverseTree([](const TreeNode* node, void* userData) {
         for (int i = 0; i < node->GetDepth(); ++i) {
             std::cout << "--";
         }
